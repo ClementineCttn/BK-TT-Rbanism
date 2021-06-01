@@ -74,9 +74,9 @@ survey_google %>%
 
 ## Making graphs {#graphs}
 
-## Creating maps {#maps}
+## Making maps {#maps}
 
-*NOTE: This part still needs work: (1) remove the script to a separate `render_places.R` file and source it here; otherwise the script will be too long; (2) the `osmdata` script is limited by the download rate of the Overpass API; consider caching the results and if that does not work try to switch to the `osmextract` package in the next code chunk.*
+*NOTE: This part still needs work: (1) remove the script to a separate `plot_places.R` file and source it here; otherwise the script will be too long; (2) the `osmdata` script is limited by the download rate of the Overpass API; consider caching the results and if that does not work try to switch to the `osmextract` package in the next code chunk.*
 
 The following code takes your home towns from the online survey, processes them in a few geoprocessing steps (like you would do in QGIS) and adds them as figures in the R Markdown document. The code is sourced from a separate `render_places.R` script which does the following:
 
@@ -91,7 +91,7 @@ The following code takes your home towns from the online survey, processes them 
 <!-- - https://ggplot2tutor.com/tutorials/streetmaps -->
 
 
-```{r places-osm-1, echo=TRUE}
+```{r places-osm-1, include=FALSE}
 places <- survey[, 2]
 places_google <- survey_google$place
 
@@ -218,11 +218,11 @@ get_boundaries <- function(places) {
     }
 }
 
-get_boundaries(places)
+get_boundaries(places[1]) # only run this for Delft; otherwise it exceeds the Overpass API rate limit
 ```
-ALternative code with the `osmextract` package.
+Alternative code with the `osmextract` package.
 
-```{r places-osm-2, eval=FALSE, include=FALSE}
+```{r places-osm-2, echo=TRUE}
 library(sf)
 library(osmextract)
 library(osmdata)
