@@ -56,8 +56,12 @@ for (i in seq_along(files)){
 This approach is error-prone and involves too many steps. Luckily, the R ecosystem of packages offers several other solutions to import survey data. As Google forms allows us to easily deploy a survey and to store the data in Google sheets^[], we will use the `googlesheets4` package to read in the survey data from there. Filling in the survey is user-friendly and the obtained data is in the right format: a so-called **data frame** with entries (survey responses) stored in rows and variables (survey questions) stored in columns.
 
 ```{r read-survey-data-google}
-# read survey data from a Google sheet that stores the survey responses
-# note that getting data via `googlesheets4` requires a Google account
+# Read survey data from a Google sheet that stores the survey responses
+# Note that getting data via `googlesheets4` requires a Google account
+# unless `gs4_deauth()` is used. Here we choose to deauthorise so that
+# the workshop participants can easily access the data.
+gs4_deauth()
+
 survey_google <- read_sheet("https://docs.google.com/spreadsheets/d/1_eErh6dy7uMiEewDc4OW_R3sl0qah2-1kYj3JW9H5tA/edit?resourcekey#gid=800252241")
 
 # clean survey data
