@@ -19,7 +19,7 @@ knitr::opts_chunk$set(
 ```
 
 ## Introduction {#intro}
-This document is meant to demonstrate the use of R in an R Markdown document. We show a basic process of data collection, visualisation of non-spatial and spatial data, and interpretation.
+This document is meant to demonstrate the practical use of R for automation, statistics, visualisation and reproducibility in an *R Markdown document*. We show basic examples of data collection through a computation loop, visualisation of non-spatial and spatial data, and interpretation.
 
 We start by loading the packages that will be used in this notebook.
 
@@ -35,25 +35,55 @@ library(kableExtra)  # create and style HTML tables
 
 ## Reading the data {#read-data}
 
-*NOTE: Clementine, here I included two ways to read in the data. I suggest we go for the second option. If you agree, we can remove this part from the Rmd.*
+One way to get the survey data would be to read it from several `csv` files, for instance information received from students in a course, or from participants in a research project.
 
-One way to get the survey data would be to read it in directly from `csv` files. When the goal is to collect responses through a survey, this approach has a few disadvantages:
-- respondents need to fill in the sheets correctly, i.e., without using the separator (e.g. a comma) used by the `csv` file; 
-- `csv` files are not 'friendly', that is, the data is shown in plain text, with fields separated by ',' or ';', not in tables;
+```{r read-survey-data-csv}
+# lists the files with "survey-" in their name in the same folder as this document
+files <- list.files(pattern="^survey-")  
+files
+```
+
+For this, we will use a 'for-loop', i.e. a simple recursive function very useful to automate operations.
+
+```{r for-loop-data-csv}
+# creates an empty table
+survey <- tibble() 
+
+n <- length(files)
+# the 'for-loop':
+for (i in 1:n){
+  f <- read.csv2(files[i], header=F)
+  if(i == 1){
+    survey <- f
+  } else {
+    survey <- cbind(survey, f[,2])
+  }
+}
+
+transpose <- as.data.frame(t(survey))
+colnames(transpose) <- c("Name", "ArrivalYearTU", "CityBefore", "InterestR", "Experience")
+survey_together <- transpose[-1,]
+rownames(survey_together) <- 1:n
+ survey_together$ArrivalYearTU <- as.numeric(survey_together$ArrivalYearTU)
+ survey_together$InterestR <- as.numeric(survey_together$InterestR)
+ 
+ # as with spreadsheets, we can create new variables
+ survey_together$SeniorityAtTUD <- 2021 - survey_together$ArrivalYearTU
+survey_together 
+```
+
+It still goes quicker to do it by hand for 3 files, but when the number of files increases (or when files change), the code is the same, and this is when it makes sense to automate the process.
+
+Moreover, when the goal is to collect responses through a survey, working with `csv` files has a few disadvantages:
+- respondents need to fill in the sheets correctly, i.e., without using the separator (e.g. a comma) used by the `csv` file, or there is more work to clean the data;
+- `csv` files are not 'friendly', that is, unless you "open with" a spreadsheet viewer, the data is shown in plain text, with fields separated by ',' or ';', not in tables;
 - files are either named differently, or respondents need to name the files after 
 - each respondent creates a separate file, which need to be read in and combined for analysis;
 - after filling in the survey, respondents need to send the `csv` files by email.
 
-```{r read-survey-data-csv}
-# read survey data from csv files
-files <- list.files(pattern="^survey-")
-survey <- tibble()
-for (i in seq_along(files)){
-    survey <- rbind(survey, t(read_csv(files[i])[,2]))
-}
-```
+This approach is error-prone and involves too many steps. Luckily, the R ecosystem of packages offers several other solutions to import survey data. As Google forms allows us to easily deploy a survey and to store the data in Google sheets, we will use the `googlesheets4` package to read in the survey data from there. Filling in the survey is user-friendly and the obtained data is in the right format: a so-called **data frame** with entries (survey responses) stored in rows and variables (survey questions) stored in columns.
 
-This approach is error-prone and involves too many steps. Luckily, the R ecosystem of packages offers several other solutions to import survey data. As Google forms allows us to easily deploy a survey and to store the data in Google sheets^[], we will use the `googlesheets4` package to read in the survey data from there. Filling in the survey is user-friendly and the obtained data is in the right format: a so-called **data frame** with entries (survey responses) stored in rows and variables (survey questions) stored in columns.
+**> Let's try with your surveys!**
 
 ```{r read-survey-data-google}
 # Read survey data from a Google sheet that stores the survey responses
@@ -67,7 +97,8 @@ survey_google <- read_sheet("https://docs.google.com/spreadsheets/d/1_eErh6dy7uM
 # clean survey data
 colnames(survey_google) <- c("timestamp", "name", "year_start_tud", "place", "interest_r", "progr_exp")
 survey_google <- survey_google %>%
-    mutate(progr_exp = ifelse(progr_exp == "Yes", TRUE, FALSE)) 
+    mutate(progr_exp = ifelse(progr_exp == "Yes", TRUE, FALSE)) %>% 
+    filter(!grepl("Test", name))
 
 # print cleaned survey data
 survey_google
@@ -76,183 +107,166 @@ survey_google %>%
     kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
-## Making graphs {#graphs}
+## Visualising non-spatial data: Making graphs {#graphs}
 
-## Making maps {#maps}
+Let's visualise some non spatial data, for instance the relation between the semiority at TU Delft and the reported interest in R.
 
-*NOTE: This part still needs work: (1) remove the script to a separate `plot_places.R` file and source it here; otherwise the script will be too long; (2) the `osmdata` script is limited by the download rate of the Overpass API; consider caching the results and if that does not work try to switch to the `osmextract` package in the next code chunk.*
+```{r graphs}
+library(ggplot2)
 
-The following code takes your home towns from the online survey, processes them in a few geoprocessing steps (like you would do in QGIS) and adds them as figures in the R Markdown document. The code is sourced from a separate `render_places.R` script which does the following:
+q <- ggplot(survey_together, aes(x=SeniorityAtTUD, y=InterestR))
+q + geom_point()
+```
 
-1. it retrieves a set of layers from OpenStreetMap for the place you named in your survey
-1. it clips the layers to the boundaries of the municipality
-1. it styles the map
+We can even estimate a linear regression between the two and visualise the result.
+
+```{r regression}
+
+fit <- lm(InterestR ~ SeniorityAtTUD, data = survey_together)
+
+ggplot(fit$model, aes_string(x = names(fit$model)[2], y = names(fit$model)[1])) + 
+  geom_point() +
+  stat_smooth(method = "lm", col = "red") +
+  labs(title = paste("Adj R2 = ",signif(summary(fit)$adj.r.squared, 2),
+                     "Intercept =",signif(fit$coef[[1]],2 ),
+                     " Slope =",signif(fit$coef[[2]], 2),
+                     " P =",signif(summary(fit)$coef[2,4], 2)))
+
+```
+
+## Visualising spatial data: Making maps {#maps}
+
+The following code takes your home towns from the online survey and displays them on an interactive map.
+
+```{r places-osm-2, echo=TRUE}
+library(sf)
+library(osmextract)
+library(osmdata)
+library(leaflet)
+
+# get places from csv survey
+places <- survey_google[, 4]
+
+for (i in 1:nrow(places)){
+## get municipal boundary from osmdata
+bb <- osmdata::getbb(
+            place_name = places[i,],
+            format_out = 'sf_polygon',
+            silent = FALSE
+        )
+  assign(paste0("bb", i), bb)
+  if(i == 1){
+    bbx <- bb
+  } else{
+    bbx <- rbind(bbx, bb)
+  }
+}
+
+#map places on interactive map
+leaflet(bbx) %>% addProviderTiles("CartoDB.Positron") %>%
+    addPolygons()
+```
+
+Let's extract the boundary and primary streets of the city of Rotterdam.
+    
+```{r places-osm-3}
+## create a function to extract the streets of a city x
+map_city_streets <- function(x) {
+    osm_lines = oe_get(x, stringsAsFactors = FALSE, quiet = TRUE)
+    nrow(osm_lines)
+    # get highway types of interest
+    # ht <- c("primary", "secondary", "tertiary", "unclassified") 
+    ht <- c("motorway", "motorway_link", "primary", "primary_link") 
+    bb <- osmdata::getbb(place_name = x,
+                         format_out = 'sf_polygon',
+                         silent = FALSE)
+    osm_major_roads_place <- osm_lines[osm_lines$highway %in% ht,] %>%
+        sf::st_intersection(bb)
+    
+    plot(bb[[1]])
+    plot(osm_major_roads_place$geometry, add = T, col = "red")
+}
+    
+## let's map it for Rotterdam
+map_city_streets("Rotterdam, NL")
+```
+
+Let's use the same function on the last survey response.
+ 
+```{r places-osm-4}
+sl <- nrow(survey_google)
+# map_city_streets(survey_google[, 4][[sl-2:sl]])
+map_city_streets(survey_google[, 4][[sl]])
+```
+
+For larger OSM datasets, the `osmdata` pacakge might not be useful as it has a request limit. An alternative is the `osmextract` package which downloads entire OSM extracts to a local folder and retreives the spatial data from there. Let's see an example with the city of Delft.
+
+```{r places-osm-5, echo=TRUE}
+library(sf)
+library(osmextract)
+library(osmdata)
+
+# get places from csv survey
+# places <- survey[, 2]
+# get places from google survey
+# places_google <- pull(survey_google[, 4])
+
+map_city_streets2 <- function(x) {
+    ## get municipal boundary from osmdata
+    bb <- osmdata::getbb(place_name = x,
+                         format_out = 'sf_polygon',
+                         silent = FALSE)
+    
+    ## get data from osmextract
+    osm_lines = oe_get(x,
+                       stringsAsFactors = FALSE,
+                       # force_download = TRUE,
+                       quiet = FALSE)
+    nrow(osm_lines)
+    ## get highway types of interest
+    ht <- c(
+        "motorway",
+        "motorway_link",
+        "primary",
+        "primary_link",
+        "secondary",
+        "tertiary",
+        "unclassified"
+    )
+    osm_major_roads <- osm_lines[osm_lines$highway %in% ht, ] %>%
+        sf::st_intersection(bb)
+    
+    ## plot data
+    plot(bb)
+    plot(
+        osm_major_roads["highway"]$geometry,
+        key.pos = 1,
+        add = T,
+        col = "red",
+        lwd = 0.7
+    )
+}
+
+# map Delft
+map_city_streets2("Delft, Netherlands")
+```
+
+Now let's use the same function on the last entry of the survey data.
+
+```{r places-osm-6, echo=TRUE}
+sl <- nrow(survey_google)
+# map_city_streets(survey_google[, 4][[sl-2:sl]])
+map_city_streets2(survey_google[, 4][[sl]])
+```
+
+To summarise, the code chunks in this section took your home towns from the online survey, processed them in a few geoprocessing steps (like you would do in QGIS) and added them as figures or interactive maps in the R Markdown document. General steps taken:
+
+1. retrieve a set of layers from OpenStreetMap for the place you named in your survey
+1. clip the layers to the boundaries of the municipality
+1. style and display the map
 
 <!-- Parts of the code were adapted from: -->
 
 <!-- - http://joshuamccrain.com/tutorials/maps/streets_tutorial.html -->
 <!-- - http://estebanmoro.org/post/2020-10-19-personal-art-map-with-r/ -->
 <!-- - https://ggplot2tutor.com/tutorials/streetmaps -->
-
-
-```{r places-osm-1, include=FALSE}
-places <- survey[, 2]
-places_google <- survey_google$place
-
-# source("render_places.R")
-
-# 1. Get city boundaries
-get_boundaries <- function(places) {
-    for (i in seq_along(places)) {
-        bb <- getbb(
-            place_name = places[i],
-            format_out = 'sf_polygon',
-            silent = FALSE
-        )
-        
-        big_streets <- getbb(places[i]) %>%
-            opq() %>%
-            add_osm_feature(
-                key = "highway",
-                value = c(
-                    "motorway",
-                    "primary",
-                    "motorway_link",
-                    "primary_link"
-                )
-            ) %>%
-            osmdata_sf() %>%
-            pluck("osm_lines") %>%
-            st_intersection(bb)
-        
-        med_streets <- getbb(places[i]) %>%
-            opq() %>%
-            add_osm_feature(
-                key = "highway",
-                value = c(
-                    "secondary",
-                    "tertiary",
-                    "secondary_link",
-                    "tertiary_link"
-                )
-            ) %>%
-            osmdata_sf() %>%
-            pluck("osm_lines") %>%
-            st_intersection(bb)
-        
-        small_streets <- getbb(places[i]) %>%
-            opq() %>%
-            add_osm_feature(
-                key = "highway",
-                value = c(
-                    "residential",
-                    "living_street",
-                    "unclassified",
-                    "service",
-                    "footway"
-                )
-            ) %>%
-            osmdata_sf() %>%
-            pluck("osm_lines") %>%
-            st_intersection(bb)
-        
-        river <- getbb(places[i]) %>%
-            opq() %>%
-            add_osm_feature(key = "natural",
-                            value = "water") %>%
-            # add_osm_feature(key = "water",
-            #                 value = "river") %>%
-            osmdata_sf() %>%
-            pluck("osm_polygons") %>%
-            st_intersection(bb)
-        
-        railway <- getbb(places[i]) %>%
-            opq() %>%
-            add_osm_feature(key = "railway", value = "rail") %>%
-            osmdata_sf() %>%
-            pluck("osm_lines") %>%
-            st_intersection(bb)
-        
-        p <- ggplot() +
-            geom_sf(
-                data = river,
-                inherit.aes = FALSE,
-                fill = "steelblue",
-                color = "white",
-                size = 0.05,
-            ) +
-            geom_sf(
-                data = railway,
-                inherit.aes = FALSE,
-                color = "orange",
-                size = .6,
-                # linetype = "dotdash",
-            ) +
-            geom_sf(
-                data = med_streets,
-                inherit.aes = FALSE,
-                color = "black",
-                size = .3,
-            ) +
-            geom_sf(
-                data = small_streets,
-                inherit.aes = FALSE,
-                color = "#666666",
-                size = .2,
-            ) +
-            geom_sf(
-                data = big_streets,
-                inherit.aes = FALSE,
-                color = "black",
-                size = .8,
-            ) +
-            geom_sf(
-                data = st_cast(bb, "LINESTRING"),
-                inherit.aes = FALSE,
-                color = "darkred",
-                size = 1
-            ) +
-            coord_sf(
-                xlim = getbb(places[i])[1, ],
-                ylim = getbb(places[i])[2, ],
-                expand = FALSE
-            ) +
-            theme_void() +
-            labs(title = toupper(places[i]))
-        return(p)
-    }
-}
-
-get_boundaries(places[1]) # only run this for Delft; otherwise it exceeds the Overpass API rate limit
-```
-Alternative code with the `osmextract` package.
-
-```{r places-osm-2, echo=TRUE}
-library(sf)
-library(osmextract)
-library(osmdata)
-
-# get places from csv survey
-places <- survey[, 2]
-# get places from google survey
-places_google <- survey_google$place
-
-# create map - test Delft
-## get municipal boundary from osmdata
-bb2 <- osmdata::getbb(
-            place_name = "Delft, Netherlands",
-            format_out = 'sf_polygon',
-            silent = FALSE
-        )
-
-## get data from osmextract
-osm_lines = oe_get("Delft, Netherlands", stringsAsFactors = FALSE, quiet = TRUE)
-nrow(osm_lines)
-ht <- c("primary", "secondary", "tertiary", "unclassified") # highway types of interest
-osm_major_roads_delft <- osm_lines[osm_lines$highway %in% ht, ] %>% 
-    sf::st_intersection(bb2)
-
-## plot data
-plot(osm_major_roads_delft["highway"], key.pos = 1)
-```
-
