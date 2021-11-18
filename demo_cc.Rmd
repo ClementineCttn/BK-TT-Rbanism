@@ -201,6 +201,5 @@ map_city_streets("Rotterdam")
  
 ```{r places-osm-4}
 map_city_streets(places[n])
-
 ```
 
