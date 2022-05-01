@@ -35,9 +35,6 @@ library(kableExtra)  # create and style HTML tables
 
 ## Reading the data {#read-data}
 
-*NOTE: @Clementine, here I included two ways to read in the data. I suggest we go for the second option. If you agree, we can remove this part from the Rmd.*
-*NOTE: @Claudiu, I could not knit the document without the authentication details for your google sheet so I assumed it also would not compile for other participants. I therefore created this document without it*
-
 One way to get the survey data would be to read it from several `csv` files, for instance information received from students in a course, or from participants in a research project.
 
 ```{r read-survey-data-csv}
@@ -78,37 +75,7 @@ survey_together
 ```
 It still goes quicker to do it by hand for 3 files, but when the number of files increases (or when files change), the code is the same, and this is when it makes sense to automate the process.
 
-**> Let's try with your surveys!**
-
-However, when the goal is to collect responses through a survey, this approach has a few disadvantages:
-- respondents need to fill in the sheets correctly, i.e., without using the separator (e.g. a comma) used by the `csv` file, or there is more work to clean the data;
-- `csv` files are not 'friendly', that is, unless you "open with" a spreadsheet viewer, the data is shown in plain text, with fields separated by ',' or ';', not in tables;
-- files are either named differently, or respondents need to name the files after 
-- each respondent creates a separate file, which need to be read in and combined for analysis;
-- after filling in the survey, respondents need to send the `csv` files by email.
-
-This approach is error-prone and involves too many steps. Luckily, the R ecosystem of packages offers several other solutions to import survey data. As Google forms allows us to easily deploy a survey and to store the data in Google sheets^[], we will use the `googlesheets4` package to read in the survey data from there. Filling in the survey is user-friendly and the obtained data is in the right format: a so-called **data frame** with entries (survey responses) stored in rows and variables (survey questions) stored in columns.
-
-
-```{r read-survey-data-google, eval=FALSE}
-# read survey data from a Google sheet that stores the survey responses
-# note that getting data via `googlesheets4` requires a Google account
-survey_google <- read_sheet("https://docs.google.com/spreadsheets/d/1_eErh6dy7uMiEewDc4OW_R3sl0qah2-1kYj3JW9H5tA/edit?resourcekey#gid=800252241")
-
-# clean survey data
-colnames(survey_google) <- c("timestamp", "name", "year_start_tud", "place", "interest_r", "progr_exp")
-survey_google <- survey_google %>%
-    mutate(progr_exp = ifelse(progr_exp == "Yes", TRUE, FALSE)) 
-
-# print cleaned survey data
-survey_google
-survey_google %>% 
-    kbl() %>%
-    kable_styling(bootstrap_options = c("striped", "hover"))
-```
-
-
-## Visualising non spatial data: Making graphs {#graphs}
+## Visualising non-spatial data: Making graphs {#graphs}
 
 Let's visualise some non spatial data, for instance the relation between the semiority at TU Delft and the reported interest in R.
 
@@ -129,19 +96,15 @@ fit <- lm(InterestR ~ SeniorityAtTUD, data = survey_together)
 ggplot(fit$model, aes_string(x = names(fit$model)[2], y = names(fit$model)[1])) + 
   geom_point() +
   stat_smooth(method = "lm", col = "red") +
-  labs(title = paste("Adj R2 = ",signif(summary(fit)$adj.r.squared, 2),
+  labs(title = paste("Adj R2 = ",round(signif(summary(fit)$adj.r.squared, 2), digits = 3),
                      "Intercept =",signif(fit$coef[[1]],2 ),
                      " Slope =",signif(fit$coef[[2]], 2),
-                     " P =",signif(summary(fit)$coef[2,4], 2)))
+                     " P =",signif(summary(fit)$coef[2,4], 2)), cex=2)
 
 ```
 
 
 ## Visualising spatial data:  Making maps {#maps}
-
-*NOTE: @Claudiu: I have used osmextract and included a basic map on leaflet (interactive)*
-
-The following code takes your home towns from the online survey, 
 
 ```{r places-osm-2, echo=TRUE}
 library(sf)
@@ -197,10 +160,9 @@ plot(osm_major_roads_place)
 map_city_streets("Rotterdam")
 ```
  
- Let's try with the last survey's response
+ Let's try with the last respondent's response
  
 ```{r places-osm-4}
 map_city_streets(places[n])
-
 ```
 
