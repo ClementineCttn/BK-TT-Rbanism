@@ -8,3 +8,5 @@ demo.md
 demo.html
 test-multiple-outputs.Rmd
 BK-TT-Rbanism.Rproj
+demo_files/
+.DS_Store
