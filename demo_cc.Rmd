@@ -48,7 +48,7 @@ For this, we will use a 'for-loop', i.e. a simple recursive function very useful
 ```{r for-loop-data-csv}
 # creates an empty table
 survey <- tibble() 
-
+i=1
 n <- length(files)
 # the 'for-loop':
 for (i in 1:n){
