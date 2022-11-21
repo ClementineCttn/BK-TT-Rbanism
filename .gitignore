@@ -2,9 +2,8 @@
 .Rhistory
 .RData
 .Ruserdata
-demo_cc.html
-demo_cc.md
-demo.md
-demo.html
-test-multiple-outputs.Rmd
-BK-TT-Rbanism.Rproj
+*.md
+*.html
+demo_files/
+demo_cc_files/
+.DS_Store

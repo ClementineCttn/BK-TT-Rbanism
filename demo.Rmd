@@ -145,7 +145,7 @@ library(osmdata)
 library(leaflet)
 
 # get places from csv survey
-places <- survey_google[, 4]
+places <- survey_google[c(1,2,4,5,7), 4]
 
 for (i in 1:nrow(places)){
 ## get municipal boundary from osmdata
@@ -196,7 +196,7 @@ Let's use the same function on the last survey response.
 ```{r places-osm-4}
 sl <- nrow(survey_google)
 # map_city_streets(survey_google[, 4][[sl-2:sl]])
-map_city_streets(survey_google[, 4][[sl]])
+map_city_streets(pull(survey_google[, 4])[4])
 ```
 
 For larger OSM datasets, the `osmdata` pacakge might not be useful as it has a request limit. An alternative is the `osmextract` package which downloads entire OSM extracts to a local folder and retreives the spatial data from there. Let's see an example with the city of Delft.
@@ -256,7 +256,7 @@ Now let's use the same function on the last entry of the survey data.
 ```{r places-osm-6, echo=TRUE}
 sl <- nrow(survey_google)
 # map_city_streets(survey_google[, 4][[sl-2:sl]])
-map_city_streets2(survey_google[, 4][[sl]])
+map_city_streets2(pull(survey_google[, 4])[7])
 ```
 
 To summarise, the code chunks in this section took your home towns from the online survey, processed them in a few geoprocessing steps (like you would do in QGIS) and added them as figures or interactive maps in the R Markdown document. General steps taken:
